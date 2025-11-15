@@ -1,23 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY as string;
-const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
+let stripe: Stripe | null = null;
 
-if (!stripeSecretKey) {
-  throw new Error("Missing STRIPE_SECRET_KEY environment variable");
+function getStripe(): Stripe | null {
+  const key = process.env.STRIPE_SECRET_KEY;
+
+  if (!key) {
+    console.error(
+      "[Stripe] STRIPE_SECRET_KEY is not set. Webhook will not work."
+    );
+    return null;
+  }
+
+  if (!stripe) {
+    stripe = new Stripe(key, {
+      apiVersion: "2025-10-29.clover",
+    });
+  }
+
+  return stripe;
 }
 
-if (!stripeWebhookSecret) {
-  throw new Error("Missing STRIPE_WEBHOOK_SECRET environment variable");
-}
-
-// Stripe client (server-side)
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: "2025-10-29.clover",
-});
-
-// Helper to send JSON easily
 function json(data: any, init?: { status?: number }): NextResponse {
   return NextResponse.json(data, { status: init?.status ?? 200 });
 }
@@ -26,8 +30,29 @@ export async function POST(req: NextRequest) {
   const sig = req.headers.get("stripe-signature");
 
   if (!sig) {
-    console.error("Stripe webhook missing signature header");
+    console.error("[Stripe] Webhook missing signature header");
     return json({ error: "Missing Stripe signature" }, { status: 400 });
+  }
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    console.error(
+      "[Stripe] STRIPE_WEBHOOK_SECRET is not set. Webhook cannot verify events."
+    );
+    return json(
+      { error: "Stripe webhook is not configured on the server" },
+      { status: 500 }
+    );
+  }
+
+  const stripeClient = getStripe();
+
+  if (!stripeClient) {
+    return json(
+      { error: "Stripe is not configured on the server" },
+      { status: 500 }
+    );
   }
 
   let event: Stripe.Event;
@@ -35,15 +60,18 @@ export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
 
-    event = stripe.webhooks.constructEvent(
+    event = stripeClient.webhooks.constructEvent(
       rawBody,
       sig,
-      stripeWebhookSecret // now typed as string
+      webhookSecret
     );
   } catch (err: any) {
-    console.error("Stripe webhook signature verification failed:", err.message);
+    console.error(
+      "Stripe webhook signature verification failed:",
+      err?.message
+    );
     return json(
-      { error: `Webhook error: ${err.message || "Invalid signature"}` },
+      { error: `Webhook error: ${err?.message || "Invalid signature"}` },
       { status: 400 }
     );
   }
@@ -59,7 +87,7 @@ export async function POST(req: NextRequest) {
           metadata: session.metadata,
         });
 
-        // TODO: Update Supabase profile (membership_type) based on metadata or email
+        // TODO: Update Supabase profile membership_type here
 
         break;
       }
@@ -73,7 +101,7 @@ export async function POST(req: NextRequest) {
           customer: sub.customer,
         });
 
-        // TODO: Set membership_type = "premium" when sub.status === "active"
+        // TODO: membership_type = "premium" when sub.status === "active"
 
         break;
       }
@@ -86,7 +114,7 @@ export async function POST(req: NextRequest) {
           customer: sub.customer,
         });
 
-        // TODO: Downgrade membership_type to "free" in Supabase
+        // TODO: downgrade membership_type to "free"
 
         break;
       }
