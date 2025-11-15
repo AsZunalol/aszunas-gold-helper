@@ -1,0 +1,19 @@
+{
+  "collectionName": "components_guide_itemof_notes",
+  "info": {
+    "displayName": "ItemofNote"
+  },
+  "options": {},
+  "attributes": {
+    "itemId": {
+      "type": "integer"
+    },
+    "label": {
+      "type": "string"
+    },
+    "note": {
+      "type": "text"
+    }
+  },
+  "config": {}
+}

@@ -1,0 +1,119 @@
+{
+  "kind": "collectionType",
+  "collectionName": "guides",
+  "info": {
+    "singularName": "guide",
+    "pluralName": "guides",
+    "displayName": "Guide"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "uid"
+    },
+    "shortDescription": {
+      "type": "text"
+    },
+    "content": {
+      "type": "richtext"
+    },
+    "expansion": {
+      "type": "enumeration",
+      "enum": [
+        "Classic",
+        "TBC",
+        "WotLK",
+        "Cata",
+        "MoP",
+        "WoD",
+        "Legion",
+        "BfA",
+        "Shadowlands",
+        "Dragonflight",
+        "The War Within"
+      ]
+    },
+    "zone": {
+      "type": "string"
+    },
+    "goldPerHour": {
+      "type": "decimal"
+    },
+    "difficulty": {
+      "type": "enumeration",
+      "enum": [
+        "Easy",
+        "Medium",
+        "Sweaty Goblin"
+      ]
+    },
+    "methodType": {
+      "type": "enumeration",
+      "enum": [
+        "Farming",
+        "Crafting",
+        "Flipping",
+        "Transmog",
+        "Misc"
+      ]
+    },
+    "recommendedLevel": {
+      "type": "string"
+    },
+    "faction": {
+      "type": "enumeration",
+      "enum": [
+        "Horde",
+        "Alliance",
+        "Both"
+      ]
+    },
+    "isFeatured": {
+      "type": "boolean"
+    },
+    "lastTestedPatch": {
+      "type": "string"
+    },
+    "thumbnail": {
+      "type": "media",
+      "multiple": true,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    },
+    "category": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::category.category"
+    },
+    "tags": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::tag.tag"
+    },
+    "isPremium": {
+      "type": "boolean",
+      "default": false
+    },
+    "contentBlocks": {
+      "type": "json"
+    },
+    "ItemofNote": {
+      "type": "component",
+      "component": "guide.itemof-note",
+      "repeatable": true
+    },
+    "contentHtml": {
+      "type": "richtext"
+    }
+  }
+}
