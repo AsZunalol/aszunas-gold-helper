@@ -852,9 +852,9 @@ export default function AdminCreateGuidePage() {
                   automatic_uploads: true,
                   file_picker_types: "image",
                   images_upload_handler: async (
-                    blobInfo,
-                    success,
-                    failure
+                    blobInfo: any,
+                    success: (url: string) => void,
+                    failure: (err: string) => void
                   ) => {
                     try {
                       const formData = new FormData();
@@ -902,7 +902,7 @@ export default function AdminCreateGuidePage() {
                   },
 
                   // Custom WoW item button
-                  setup: (editor) => {
+                  setup: (editor: any) => {
                     editor.ui.registry.addButton("wowitem", {
                       text: "WoW Item",
                       tooltip: "Insert Wowhead item link",
