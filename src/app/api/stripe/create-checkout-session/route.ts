@@ -33,12 +33,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const priceId = body.priceId as string | undefined;
+    // Try to read JSON body, but don't crash if empty
+    let body: any = null;
+    try {
+      body = await req.json();
+    } catch {
+      body = null;
+    }
+
+    // Priority: 1) body.priceId, 2) server env, 3) public env
+    const envPriceId =
+      process.env.STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
+
+    const priceId: string | undefined =
+      body?.priceId && typeof body.priceId === "string"
+        ? body.priceId
+        : envPriceId;
 
     if (!priceId) {
+      console.error(
+        "[Stripe] No priceId provided and STRIPE_PRICE_ID / NEXT_PUBLIC_STRIPE_PRICE_ID not set."
+      );
       return NextResponse.json(
-        { error: "Missing priceId in request body" },
+        {
+          error:
+            "No priceId provided. Set STRIPE_PRICE_ID in your env or send { priceId } in the request body.",
+        },
         { status: 400 }
       );
     }
