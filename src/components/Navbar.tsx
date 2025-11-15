@@ -54,6 +54,7 @@ export default function Navbar() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [user, setUser] = useState<AghUser | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   // Load user based on Supabase session + profiles (with legacy localStorage fallback)
   useEffect(() => {
@@ -222,6 +223,45 @@ export default function Navbar() {
     }
   };
 
+  const handleManageSubscription = async () => {
+    try {
+      if (!user?.email) {
+        console.error("Manage subscription: missing user email");
+        return;
+      }
+
+      if (portalLoading) return;
+      setPortalLoading(true);
+
+      const res = await fetch("/api/stripe/create-portal-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error(
+          "Failed to create portal session:",
+          data?.error || res.status
+        );
+        setPortalLoading(false);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        console.error("No portal URL returned from API");
+        setPortalLoading(false);
+      }
+    } catch (err) {
+      console.error("Manage subscription click error:", err);
+      setPortalLoading(false);
+    }
+  };
+
   return (
     <>
       {/* NAVBAR */}
@@ -296,7 +336,7 @@ export default function Navbar() {
               {profileOpen && (
                 <div
                   className="
-                    absolute right-0 mt-2 w-48 rounded-xl border border-slate-800
+                    absolute right-0 mt-2 w-52 rounded-xl border border-slate-800
                     bg-slate-950/98 py-2 text-[11px] text-slate-200 shadow-xl
                   "
                 >
@@ -319,6 +359,22 @@ export default function Navbar() {
                       <div className="my-1 border-t border-slate-800/70" />
                     </>
                   )}
+
+                  {isPremiumMember && (
+                    <button
+                      className="w-full px-3 py-1.5 text-left hover:bg-slate-900/90 hover:text-emerald-400 transition"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        handleManageSubscription();
+                      }}
+                      disabled={portalLoading}
+                    >
+                      {portalLoading
+                        ? "Opening billing portal..."
+                        : "Manage subscription"}
+                    </button>
+                  )}
+
                   <button
                     className="w-full px-3 py-1.5 text-left hover:bg-slate-900/90 hover:text-emerald-400 transition"
                     onClick={() => setProfileOpen(false)}
@@ -422,6 +478,21 @@ export default function Navbar() {
                     className="w-full rounded-lg border border-amber-400/60 bg-amber-500/10 px-3 py-1.5 text-left text-[11px] font-semibold text-amber-200 hover:bg-amber-500/20 hover:border-amber-300 transition"
                   >
                     🧪 Buy Premium
+                  </button>
+                )}
+
+                {isPremiumMember && (
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      handleManageSubscription();
+                    }}
+                    disabled={portalLoading}
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-1.5 text-left text-[11px] text-slate-100 hover:border-emerald-500 hover:text-emerald-300 transition disabled:opacity-60"
+                  >
+                    {portalLoading
+                      ? "Opening billing portal..."
+                      : "Manage subscription"}
                   </button>
                 )}
 

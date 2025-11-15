@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Try to read JSON body, but don't crash if empty
+    // try parse JSON body but don't crash if it's empty
     let body: any = null;
     try {
       body = await req.json();
@@ -41,7 +41,13 @@ export async function POST(req: NextRequest) {
       body = null;
     }
 
-    // Priority: 1) body.priceId, 2) server env, 3) public env
+    // get userEmail from body (frontend will send this)
+    const userEmail =
+      body?.userEmail && typeof body.userEmail === "string"
+        ? body.userEmail
+        : undefined;
+
+    // Priority: 1) body.priceId, 2) env STRIPE_PRICE_ID / NEXT_PUBLIC_STRIPE_PRICE_ID
     const envPriceId =
       process.env.STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
 
@@ -78,6 +84,12 @@ export async function POST(req: NextRequest) {
       success_url: `${baseUrl}/membership/success`,
       cancel_url: `${baseUrl}/membership/cancel`,
       allow_promotion_codes: true,
+      customer_email: userEmail, // so Stripe knows the email too
+      metadata: userEmail
+        ? {
+            user_email: userEmail,
+          }
+        : {},
     });
 
     return NextResponse.json({ url: session.url });
