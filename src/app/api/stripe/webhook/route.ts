@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY as string;
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
 
 if (!stripeSecretKey) {
   throw new Error("Missing STRIPE_SECRET_KEY environment variable");
@@ -18,10 +18,7 @@ const stripe = new Stripe(stripeSecretKey, {
 });
 
 // Helper to send JSON easily
-function json(
-  data: any,
-  init?: { status?: number }
-): NextResponse {
+function json(data: any, init?: { status?: number }): NextResponse {
   return NextResponse.json(data, { status: init?.status ?? 200 });
 }
 
@@ -41,7 +38,7 @@ export async function POST(req: NextRequest) {
     event = stripe.webhooks.constructEvent(
       rawBody,
       sig,
-      stripeWebhookSecret
+      stripeWebhookSecret // now typed as string
     );
   } catch (err: any) {
     console.error("Stripe webhook signature verification failed:", err.message);
@@ -62,9 +59,7 @@ export async function POST(req: NextRequest) {
           metadata: session.metadata,
         });
 
-        // TODO: Here is where you update Supabase `profiles.membership_type`
-        // using metadata (e.g. session.metadata.user_id) or customer_email.
-        // This is left as a TODO so build doesn't break if your schema differs.
+        // TODO: Update Supabase profile (membership_type) based on metadata or email
 
         break;
       }
@@ -78,8 +73,7 @@ export async function POST(req: NextRequest) {
           customer: sub.customer,
         });
 
-        // TODO: Flip membership_type = "premium" when status === "active",
-        // and downgrade when "canceled" / "past_due" / etc.
+        // TODO: Set membership_type = "premium" when sub.status === "active"
 
         break;
       }
@@ -92,7 +86,7 @@ export async function POST(req: NextRequest) {
           customer: sub.customer,
         });
 
-        // TODO: Downgrade membership_type to "free" in Supabase.
+        // TODO: Downgrade membership_type to "free" in Supabase
 
         break;
       }
@@ -104,9 +98,6 @@ export async function POST(req: NextRequest) {
     return json({ received: true });
   } catch (err: any) {
     console.error("Stripe webhook handler error:", err);
-    return json(
-      { error: "Webhook handler failed" },
-      { status: 500 }
-    );
+    return json({ error: "Webhook handler failed" }, { status: 500 });
   }
 }
