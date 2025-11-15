@@ -50,6 +50,42 @@ function json(data: any, init?: { status?: number }): NextResponse {
   return NextResponse.json(data, { status: init?.status ?? 200 });
 }
 
+async function setPremiumByEmail(email: string, stripeCustomerId: string | null) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    console.error("[Supabase] Admin client not available in setPremiumByEmail");
+    return;
+  }
+
+  const updatePayload: Record<string, any> = {
+    membership_type: "premium",
+  };
+
+  if (stripeCustomerId) {
+    updatePayload.stripe_customer_id = stripeCustomerId;
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update(updatePayload)
+    .eq("email", email);
+
+  if (error) {
+    console.error(
+      "[Supabase] Failed to update membership_type/stripe_customer_id for",
+      email,
+      error
+    );
+  } else {
+    console.log(
+      "[Supabase] membership_type='premium' updated for",
+      email,
+      "stripe_customer_id=",
+      stripeCustomerId
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   const sig = req.headers.get("stripe-signature");
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -92,17 +128,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const supabase = getSupabaseAdmin();
-
   try {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        // Prefer explicit metadata from our checkout, else fallback
         const email =
           (session.metadata?.user_email as string | undefined) ||
           session.customer_email ||
+          session.customer_details?.email ||
           undefined;
 
         let stripeCustomerId: string | null = null;
@@ -118,37 +152,11 @@ export async function POST(req: NextRequest) {
           sessionId: session.id,
         });
 
-        if (email && supabase) {
-          const updatePayload: Record<string, any> = {
-            membership_type: "premium",
-          };
-
-          if (stripeCustomerId) {
-            updatePayload.stripe_customer_id = stripeCustomerId;
-          }
-
-          const { error } = await supabase
-            .from("profiles")
-            .update(updatePayload)
-            .eq("email", email);
-
-          if (error) {
-            console.error(
-              "[Supabase] Failed to update membership_type/stripe_customer_id for email",
-              email,
-              error
-            );
-          } else {
-            console.log(
-              "[Supabase] membership_type='premium' updated for",
-              email,
-              "stripe_customer_id=",
-              stripeCustomerId
-            );
-          }
-        } else if (!email) {
+        if (email) {
+          await setPremiumByEmail(email, stripeCustomerId);
+        } else {
           console.warn(
-            "[Webhook] No email found in session to update membership_type"
+            "[Webhook] No email found in checkout.session.completed to update membership_type"
           );
         }
 
@@ -158,13 +166,15 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.updated":
       case "customer.subscription.created": {
         const sub = event.data.object as Stripe.Subscription;
+
         console.log("🔁 Subscription updated", {
           id: sub.id,
           status: sub.status,
           customer: sub.customer,
         });
 
-        // Optional: keep membership_type in sync here too if you want.
+        // Optional: if you want to ensure 'active' subs always mean premium,
+        // you can fetch the customer + email here and call setPremiumByEmail again.
         break;
       }
 
